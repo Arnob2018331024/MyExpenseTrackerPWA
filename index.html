@@ -1014,9 +1014,110 @@
         updateCategoryOptions();
       }
 
-      // (rest of omitted functions: form submission, import/export, initialization, etc.)
-      // To keep this edit minimal and focused, the remainder of the script is unchanged.
+      // Export Data as CSV
+      function exportDataAsCSV() {
+        if (expenses.length === 0) {
+          alert("No expenses to export!");
+          return;
+        }
 
+        let csv = "Date,Category,Amount\n";
+        expenses.forEach((e) => {
+          csv += `${e.date},"${e.category}",${e.amount}\n`;
+        });
+
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", `expenses_${new Date().toISOString().substring(0, 10)}.csv`);
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      // Trigger File Input
+      function triggerFileInput() {
+        fileInput.click();
+      }
+
+      // Handle File Import
+      fileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const csv = event.target.result;
+            const lines = csv.trim().split("\n");
+            const newExpenses = [];
+            let id = expenses.length > 0 ? Math.max(...expenses.map((e) => e.id)) + 1 : 1;
+
+            for (let i = 1; i < lines.length; i++) {
+              const line = lines[i].trim();
+              if (!line) continue;
+
+              // Simple CSV parser (handles basic cases)
+              const regex = /^([^,]+),"([^"]+)",(.+)$/;
+              const match = line.match(regex);
+
+              if (match) {
+                newExpenses.push({
+                  id: id++,
+                  date: match[1].trim(),
+                  category: match[2].trim(),
+                  amount: parseFloat(match[3].trim()),
+                  timestamp: Date.now(),
+                });
+              }
+            }
+
+            if (newExpenses.length > 0) {
+              expenses = newExpenses;
+              localStorage.setItem("expenses", JSON.stringify(expenses));
+              renderDashboard();
+              renderHistory();
+              updateCategoryOptions();
+              alert(`Successfully imported ${newExpenses.length} expenses!`);
+            } else {
+              alert("No valid expenses found in the CSV file.");
+            }
+          } catch (error) {
+            alert("Error importing file: " + error.message);
+          }
+        };
+        reader.readAsText(file);
+        fileInput.value = "";
+      });
+
+      // Form submission
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+
+        const newExpense = {
+          id: expenses.length > 0 ? Math.max(...expenses.map((ex) => ex.id)) + 1 : 1,
+          amount: parseFloat(amountInput.value),
+          category: categoryInput.value.trim(),
+          date: dateInput.value,
+          timestamp: Date.now(),
+        };
+
+        expenses.push(newExpense);
+        localStorage.setItem("expenses", JSON.stringify(expenses));
+
+        form.reset();
+        initializeDateInput();
+        renderDashboard();
+        renderHistory();
+        updateCategoryOptions();
+      });
+
+      // Initialize app
+      initializeDateInput();
+      renderDashboard();
+      updateCategoryOptions();
     </script>
   </body>
 </html>

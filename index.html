@@ -91,6 +91,36 @@
         }
       }
 
+      @keyframes slideInRight {
+        from {
+          opacity: 0;
+          transform: translateX(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      @keyframes slideInLeft {
+        from {
+          opacity: 0;
+          transform: translateX(-30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+
+      .page.active.slide-left {
+        animation: slideInLeft 0.3s ease-out;
+      }
+
+      .page.active.slide-right {
+        animation: slideInRight 0.3s ease-out;
+      }
+
       /* Card Styles */
       .card {
         background: var(--card-bg);
@@ -672,6 +702,72 @@
       const clearModal = document.getElementById("clearModal");
       const fileInput = document.getElementById("fileInput");
 
+      // Swipe Gesture Handling
+      let touchStartX = 0;
+      let touchStartY = 0;
+      const swipeThreshold = 50; // Minimum distance for swipe (pixels)
+      const swipeTimeThreshold = 500; // Maximum time for swipe (ms)
+      let touchStartTime = 0;
+
+      // Tab order: 0 = Dashboard, 1 = History, 2 = Settings
+      const tabs = [
+        { name: "dashboard", id: "dashboardPage", element: document.getElementById("dashboardPage") },
+        { name: "history", id: "historyPage", element: document.getElementById("historyPage") },
+        { name: "settings", id: "settingsPage", element: document.getElementById("settingsPage") }
+      ];
+
+      let currentTabIndex = 0;
+
+      // Touch event listeners for swipe
+      document.addEventListener("touchstart", (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchStartTime = Date.now();
+      });
+
+      document.addEventListener("touchend", (e) => {
+        const touchEndX = e.changedTouches[0].clientX;
+        const touchEndY = e.changedTouches[0].clientY;
+        const touchEndTime = Date.now();
+        const timeDiff = touchEndTime - touchStartTime;
+
+        // Only consider swipes that are horizontal and fast enough
+        const deltaX = touchEndX - touchStartX;
+        const deltaY = touchEndY - touchStartY;
+
+        // Check if it's primarily a horizontal swipe
+        if (Math.abs(deltaX) > Math.abs(deltaY) && timeDiff < swipeTimeThreshold) {
+          if (Math.abs(deltaX) > swipeThreshold) {
+            if (deltaX > 0) {
+              // Swiped right - go to previous tab
+              swipeLeft();
+            } else {
+              // Swiped left - go to next tab
+              swipeRight();
+            }
+          }
+        }
+      });
+
+      function swipeLeft() {
+        if (currentTabIndex > 0) {
+          currentTabIndex--;
+          switchTabByIndex(currentTabIndex, "slide-right");
+        }
+      }
+
+      function swipeRight() {
+        if (currentTabIndex < tabs.length - 1) {
+          currentTabIndex++;
+          switchTabByIndex(currentTabIndex, "slide-left");
+        }
+      }
+
+      function switchTabByIndex(index, direction = "") {
+        const tabName = tabs[index].name;
+        switchTab(tabName, direction);
+      }
+
       // Clean utility conversions
       const getYearMonthStr = (date = new Date()) =>
         date.toISOString().substring(0, 7);
@@ -685,29 +781,52 @@
         dateInput.value = getTodayStr();
       }
 
-      function switchTab(tab) {
+      function switchTab(tab, direction = "") {
         document
           .querySelectorAll(".page")
-          .forEach((p) => p.classList.remove("active"));
+          .forEach((p) => {
+            p.classList.remove("active");
+            p.classList.remove("slide-left");
+            p.classList.remove("slide-right");
+          });
         document
           .querySelectorAll(".nav-item")
           .forEach((n) => n.classList.remove("active"));
 
-        if (event && event.currentTarget) {
-          event.currentTarget.classList.add("active");
-        }
-
+        let tabElement;
         if (tab === "dashboard") {
-          document.getElementById("dashboardPage").classList.add("active");
+          currentTabIndex = 0;
+          tabElement = document.getElementById("dashboardPage");
           document.getElementById("pageTitle").textContent = "Dashboard";
           renderDashboard();
         } else if (tab === "history") {
-          document.getElementById("historyPage").classList.add("active");
+          currentTabIndex = 1;
+          tabElement = document.getElementById("historyPage");
           document.getElementById("pageTitle").textContent = "Archived Logs";
           renderHistory();
         } else if (tab === "settings") {
-          document.getElementById("settingsPage").classList.add("active");
+          currentTabIndex = 2;
+          tabElement = document.getElementById("settingsPage");
           document.getElementById("pageTitle").textContent = "Settings";
+        }
+
+        if (tabElement) {
+          tabElement.classList.add("active");
+          if (direction) {
+            tabElement.classList.add(direction);
+          }
+        }
+
+        // Update nav button active state
+        const navItems = document.querySelectorAll(".nav-item");
+        navItems.forEach((item, index) => {
+          if (index === currentTabIndex) {
+            item.classList.add("active");
+          }
+        });
+
+        if (event && event.currentTarget && event.currentTarget.classList.contains("nav-item")) {
+          event.currentTarget.classList.add("active");
         }
       }
 
@@ -998,7 +1117,9 @@
     <!-- Register Service Worker for PWA compliance -->
     <script>
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("sw.js").catch(() => {});
+        navigator.serviceWorker.register("sw.js").catch(() => {
+          // Service worker registration failed, app will still work offline to some extent.
+        });
       }
     </script>
   </body>

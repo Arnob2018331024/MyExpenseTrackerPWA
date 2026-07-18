@@ -275,6 +275,7 @@
       .history-table {
         width: 100%;
         border-collapse: collapse;
+        table-layout: fixed;
       }
       .history-table th {
         text-align: left;
@@ -288,6 +289,7 @@
         font-size: 0.95rem;
         border-bottom: 1px solid var(--border);
         vertical-align: middle;
+        word-break: break-word;
       }
       .history-row {
         cursor: pointer;
@@ -558,7 +560,7 @@
 
       <!-- PAGE 2: HISTORY -->
       <div id="historyPage" class="page">
-        <div class="card" style="padding: 10px; overflow-x: auto">
+        <div class="card" style="padding: 0; overflow-x: auto">
           <table class="history-table">
             <thead>
               <tr>
@@ -988,8 +990,7 @@
 
           htmlString += `
                     <tr class="month-total-row">
-                        <td colspan="3">Total Spend</td>
-                        <td>${subtotal.toFixed(2)} BDT</td>
+                        <td colspan="3">Total Spend: ${subtotal.toFixed(2)} BDT</td>
                     </tr>
                 `;
         }
@@ -1011,25 +1012,23 @@
       function closeEditModal() {
         editModal.classList.remove("active");
         editingId = null;
-        editForm.reset();
       }
 
       editForm.addEventListener("submit", (e) => {
         e.preventDefault();
-        const expense = expenses.find((ex) => ex.id === editingId);
-        if (!expense) return;
 
-        expense.amount = parseFloat(editAmountInput.value);
-        expense.category = editCategoryInput.value.trim();
-        expense.date = editDateInput.value;
-        expense.timestamp = Date.now();
+        const expense = expenses.find((x) => x.id === editingId);
+        if (expense) {
+          expense.amount = parseFloat(editAmountInput.value);
+          expense.category = editCategoryInput.value;
+          expense.date = editDateInput.value;
+          expense.timestamp = new Date(editDateInput.value).getTime();
 
-        localStorage.setItem("expenses", JSON.stringify(expenses));
-        closeEditModal();
-        expandedHistoryRowId = null;
-        renderDashboard();
-        renderHistory();
-        updateCategoryOptions();
+          localStorage.setItem("expenses", JSON.stringify(expenses));
+          closeEditModal();
+          renderDashboard();
+          renderHistory();
+        }
       });
 
       // Delete Modal Functions
@@ -1047,13 +1046,11 @@
         expenses = expenses.filter((e) => e.id !== deletingId);
         localStorage.setItem("expenses", JSON.stringify(expenses));
         closeDeleteModal();
-        expandedHistoryRowId = null;
         renderDashboard();
         renderHistory();
-        updateCategoryOptions();
       }
 
-      // Clear All Functions
+      // Clear All Modal Functions
       function clearAllData() {
         clearModal.classList.add("active");
       }
@@ -1066,50 +1063,35 @@
         expenses = [];
         localStorage.setItem("expenses", JSON.stringify(expenses));
         closeClearModal();
-        expandedHistoryRowId = null;
         renderDashboard();
         renderHistory();
-        updateCategoryOptions();
       }
 
-      // Export data as CSV
+      // Export/Import Functions
       function exportDataAsCSV() {
         if (expenses.length === 0) {
-          alert("No data to export!");
+          alert("No expenses to export.");
           return;
         }
 
-        const headers = ["ID", "Date", "Category", "Amount"];
-        const rows = expenses.map((e) => [
-          e.id,
-          e.date,
-          e.category,
-          e.amount,
-        ]);
+        let csv = "Date,Category,Amount\n";
+        expenses.forEach((e) => {
+          csv += `${e.date},"${e.category}",${e.amount}\n`;
+        });
 
-        let csvContent = [headers, ...rows]
-          .map((r) => r.map((cell) => `"${cell}"`).join(","))
-          .join("\n");
-
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(blob);
-
-        link.setAttribute("href", url);
-        link.setAttribute("download", "expenses.csv");
-        link.style.visibility = "hidden";
-
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `expenses_${new Date().toISOString().substring(0, 10)}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
       }
 
-      // Trigger file input for import
       function triggerFileInput() {
         fileInput.click();
       }
 
-      // Handle file import
       fileInput.addEventListener("change", (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -1118,77 +1100,45 @@
         reader.onload = (event) => {
           try {
             const csv = event.target.result;
-            const lines = csv.trim().split("\n");
+            const lines = csv.split("\n").filter((line) => line.trim());
 
             if (lines.length < 2) {
-              alert("Invalid CSV file!");
+              alert("CSV file is empty or invalid.");
               return;
             }
 
-            const headers = lines[0]
-              .split(",")
-              .map((h) => h.replace(/"/g, "").trim());
-            const data = [];
-
+            const newExpenses = [];
             for (let i = 1; i < lines.length; i++) {
-              const line = lines[i];
-              const cells = line.split(",").map((c) => c.replace(/"/g, "").trim());
-
-              if (cells.length >= 4) {
-                data.push({
-                  id: parseInt(cells[0]) || Date.now() + i,
-                  date: cells[1],
-                  category: cells[2],
-                  amount: cells[3],
-                  timestamp: Date.now(),
+              const [date, category, amount] = lines[i].split(",");
+              if (date && category && amount) {
+                newExpenses.push({
+                  id: Date.now() + i,
+                  date: date.trim(),
+                  category: category.trim().replace(/"/g, ""),
+                  amount: parseFloat(amount),
+                  timestamp: new Date(date.trim()).getTime(),
                 });
               }
             }
 
-            expenses = data;
-            localStorage.setItem("expenses", JSON.stringify(expenses));
-            expandedHistoryRowId = null;
-            renderDashboard();
-            renderHistory();
-            updateCategoryOptions();
-            alert("Data imported successfully!");
-          } catch (error) {
-            alert("Error parsing CSV file: " + error.message);
+            if (newExpenses.length > 0) {
+              expenses = newExpenses;
+              localStorage.setItem("expenses", JSON.stringify(expenses));
+              renderDashboard();
+              renderHistory();
+              alert(`Successfully imported ${newExpenses.length} expenses.`);
+            }
+          } catch (err) {
+            alert("Error reading CSV file: " + err.message);
           }
         };
-
         reader.readAsText(file);
         fileInput.value = "";
       });
 
-      // Form submission
-      form.addEventListener("submit", (e) => {
-        e.preventDefault();
-
-        const id = Date.now();
-        const expense = {
-          id: id,
-          amount: amountInput.value,
-          category: categoryInput.value.trim(),
-          date: dateInput.value,
-          timestamp: Date.now(),
-        };
-
-        expenses.push(expense);
-        localStorage.setItem("expenses", JSON.stringify(expenses));
-
-        form.reset();
-        initializeDateInput();
-        renderDashboard();
-        renderHistory();
-        updateCategoryOptions();
-      });
-
-      // Initialize
+      // Initialize the app
       initializeDateInput();
       renderDashboard();
-      renderHistory();
-      updateCategoryOptions();
     </script>
   </body>
 </html>

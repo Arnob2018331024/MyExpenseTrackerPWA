@@ -153,6 +153,24 @@
         background: var(--primary-dark);
       }
 
+      .btn-secondary {
+        width: 100%;
+        background: #718096;
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+        margin-top: 10px;
+      }
+
+      .btn-secondary:active {
+        background: #4a5568;
+      }
+
       /* Dashboard Summary UI */
       .total-display {
         font-size: 2.2rem;
@@ -171,16 +189,20 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px 0;
+        padding: 12px;
         border-bottom: 1px solid var(--border);
+        border-radius: 8px;
+        background: #f8fafc;
+        position: relative;
       }
       .expense-row:last-child {
-        border-bottom: none;
+        border-bottom: 1px solid var(--border);
       }
       .row-left {
         display: flex;
         flex-direction: column;
         gap: 2px;
+        flex: 1;
       }
       .row-category {
         font-weight: 600;
@@ -194,6 +216,29 @@
         font-weight: 700;
         font-size: 1rem;
         color: var(--text-main);
+        margin: 0 12px;
+      }
+      .row-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .btn-icon {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1.1rem;
+        padding: 4px 8px;
+        border-radius: 6px;
+        transition: background 0.2s;
+      }
+      .btn-icon:hover {
+        background: rgba(0, 0, 0, 0.05);
+      }
+      .btn-edit {
+        color: #2563eb;
+      }
+      .btn-delete {
+        color: var(--danger);
       }
 
       /* History Architecture Layout */
@@ -264,6 +309,138 @@
       .nav-icon {
         font-size: 1.4rem;
       }
+
+      /* Modal Styles */
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        animation: fadeIn 0.2s ease-out;
+      }
+
+      .modal.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .modal-content {
+        background-color: var(--card-bg);
+        padding: 24px;
+        border-radius: 16px;
+        width: 90%;
+        max-width: 450px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      }
+
+      .modal-header {
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-bottom: 20px;
+        color: var(--text-main);
+      }
+
+      .modal-footer {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      .modal-footer button {
+        flex: 1;
+        padding: 12px;
+        border: none;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .btn-cancel {
+        background: #e2e8f0;
+        color: var(--text-main);
+      }
+
+      .btn-cancel:active {
+        background: #cbd5e0;
+      }
+
+      .btn-confirm {
+        background: var(--primary);
+        color: white;
+      }
+
+      .btn-confirm:active {
+        background: var(--primary-dark);
+      }
+
+      .btn-danger {
+        background: var(--danger);
+        color: white;
+      }
+
+      .btn-danger:active {
+        background: #c53030;
+      }
+
+      /* Settings Page */
+      .settings-section {
+        margin-bottom: 20px;
+      }
+
+      .settings-section-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .settings-button {
+        width: 100%;
+        padding: 14px;
+        border: 1px solid var(--border);
+        background: var(--card-bg);
+        border-radius: 10px;
+        color: var(--text-main);
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        margin-bottom: 10px;
+      }
+
+      .settings-button:active {
+        background: #f0f4f8;
+      }
+
+      .settings-button.danger {
+        color: var(--danger);
+      }
+
+      .settings-button.success {
+        color: var(--primary);
+      }
+
+      .hidden-file-input {
+        display: none;
+      }
+
+      .btn-export {
+        background: var(--primary);
+        color: white;
+      }
+
+      .btn-import {
+        background: #3182ce;
+        color: white;
+      }
     </style>
   </head>
   <body>
@@ -306,6 +483,14 @@
               />
               <datalist id="categories"></datalist>
             </div>
+            <div class="form-group">
+              <label for="expenseDate">DATE</label>
+              <input
+                type="date"
+                id="expenseDate"
+                required
+              />
+            </div>
             <button type="submit" class="btn-submit">Save Transaction</button>
           </form>
         </div>
@@ -331,6 +516,43 @@
           </table>
         </div>
       </div>
+
+      <!-- PAGE 3: SETTINGS -->
+      <div id="settingsPage" class="page">
+        <div class="card">
+          <div class="card-title">Data Management</div>
+          
+          <div class="settings-section">
+            <div class="settings-section-title">Export & Share</div>
+            <button class="settings-button btn-export" onclick="exportDataAsCSV()">
+              📥 Export as CSV
+            </button>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;">
+              Download your expense data as a CSV file
+            </p>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section-title">Import & Restore</div>
+            <button class="settings-button btn-import" onclick="triggerFileInput()">
+              📤 Import CSV File
+            </button>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;">
+              Import data from a CSV file (replaces all existing data)
+            </p>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-section-title">Danger Zone</div>
+            <button class="settings-button danger" onclick="clearAllData()">
+              🗑️ Clear All Data
+            </button>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;">
+              Delete all expenses (cannot be undone)
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Sticky Native Bottom Navigation Bar -->
@@ -343,20 +565,112 @@
         <span class="nav-icon">📜</span>
         <span>All History</span>
       </button>
+      <button class="nav-item" onclick="switchTab('settings')">
+        <span class="nav-icon">⚙️</span>
+        <span>Settings</span>
+      </button>
     </nav>
+
+    <!-- Hidden file input for import -->
+    <input type="file" id="fileInput" class="hidden-file-input" accept=".csv" />
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">Edit Expense</div>
+        <form id="editForm" autocomplete="off">
+          <div class="form-group">
+            <label for="editAmount">AMOUNT (BDT)</label>
+            <input
+              type="number"
+              id="editAmount"
+              step="0.01"
+              inputmode="decimal"
+              required
+              placeholder="0.00"
+            />
+          </div>
+          <div class="form-group">
+            <label for="editCategory">SECTION / CATEGORY</label>
+            <input
+              type="text"
+              id="editCategory"
+              list="editCategories"
+              required
+              placeholder="Rent, Food, Utilities"
+            />
+            <datalist id="editCategories"></datalist>
+          </div>
+          <div class="form-group">
+            <label for="editDate">DATE</label>
+            <input
+              type="date"
+              id="editDate"
+              required
+            />
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-cancel" onclick="closeEditModal()">Cancel</button>
+            <button type="submit" class="btn-confirm">Update</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">Delete Expense?</div>
+        <p style="color: var(--text-muted); margin-bottom: 20px;">
+          Are you sure you want to delete this expense? This action cannot be undone.
+        </p>
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+          <button type="button" class="btn-danger" onclick="confirmDelete()">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clear All Confirmation Modal -->
+    <div id="clearModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">Clear All Data?</div>
+        <p style="color: var(--text-muted); margin-bottom: 20px;">
+          Are you sure you want to delete all expenses? This action cannot be undone.
+        </p>
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" onclick="closeClearModal()">Cancel</button>
+          <button type="button" class="btn-danger" onclick="confirmClearAll()">Clear All</button>
+        </div>
+      </div>
+    </div>
 
     <script>
       // Core App Logic & State management
       let expenses = JSON.parse(localStorage.getItem("expenses")) || [];
+      let editingId = null;
+      let deletingId = null;
 
       const form = document.getElementById("expenseForm");
       const amountInput = document.getElementById("amount");
       const categoryInput = document.getElementById("category");
+      const dateInput = document.getElementById("expenseDate");
       const datalist = document.getElementById("categories");
       const monthTotalEl = document.getElementById("monthTotal");
       const monthListEl = document.getElementById("monthList");
       const historyBody = document.getElementById("historyBody");
       const currentMonthNameEl = document.getElementById("currentMonthName");
+      
+      const editModal = document.getElementById("editModal");
+      const editForm = document.getElementById("editForm");
+      const editAmountInput = document.getElementById("editAmount");
+      const editCategoryInput = document.getElementById("editCategory");
+      const editDateInput = document.getElementById("editDate");
+      const editDatalist = document.getElementById("editCategories");
+      
+      const deleteModal = document.getElementById("deleteModal");
+      const clearModal = document.getElementById("clearModal");
+      const fileInput = document.getElementById("fileInput");
 
       // Clean utility conversions
       const getYearMonthStr = (date = new Date()) =>
@@ -365,6 +679,11 @@
         const tzoffset = new Date().getTimezoneOffset() * 60000;
         return new Date(Date.now() - tzoffset).toISOString().substring(0, 10);
       };
+
+      // Set date input to today
+      function initializeDateInput() {
+        dateInput.value = getTodayStr();
+      }
 
       function switchTab(tab) {
         document
@@ -382,16 +701,22 @@
           document.getElementById("dashboardPage").classList.add("active");
           document.getElementById("pageTitle").textContent = "Dashboard";
           renderDashboard();
-        } else {
+        } else if (tab === "history") {
           document.getElementById("historyPage").classList.add("active");
           document.getElementById("pageTitle").textContent = "Archived Logs";
           renderHistory();
+        } else if (tab === "settings") {
+          document.getElementById("settingsPage").classList.add("active");
+          document.getElementById("pageTitle").textContent = "Settings";
         }
       }
 
       function updateCategoryOptions() {
         const categories = [...new Set(expenses.map((e) => e.category))];
         datalist.innerHTML = categories
+          .map((c) => `<option value="${c}">`)
+          .join("");
+        editDatalist.innerHTML = categories
           .map((c) => `<option value="${c}">`)
           .join("");
       }
@@ -426,6 +751,10 @@
                         <span class="row-date">${e.date}</span>
                     </div>
                     <span class="row-amount">${parseFloat(e.amount).toFixed(2)} BDT</span>
+                    <div class="row-actions">
+                        <button class="btn-icon btn-edit" onclick="openEditModal(${e.id})" title="Edit">✏️</button>
+                        <button class="btn-icon btn-delete" onclick="openDeleteModal(${e.id})" title="Delete">🗑️</button>
+                    </div>
                 </div>
             `,
             )
@@ -485,23 +814,176 @@
         historyBody.innerHTML = htmlString;
       }
 
+      // Edit Modal Functions
+      function openEditModal(id) {
+        const expense = expenses.find((e) => e.id === id);
+        if (!expense) return;
+
+        editingId = id;
+        editAmountInput.value = expense.amount;
+        editCategoryInput.value = expense.category;
+        editDateInput.value = expense.date;
+        editModal.classList.add("active");
+      }
+
+      function closeEditModal() {
+        editModal.classList.remove("active");
+        editingId = null;
+        editForm.reset();
+      }
+
+      editForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const expense = expenses.find((ex) => ex.id === editingId);
+        if (!expense) return;
+
+        expense.amount = parseFloat(editAmountInput.value);
+        expense.category = editCategoryInput.value.trim();
+        expense.date = editDateInput.value;
+        expense.timestamp = Date.now();
+
+        localStorage.setItem("expenses", JSON.stringify(expenses));
+        closeEditModal();
+        renderDashboard();
+      });
+
+      // Delete Modal Functions
+      function openDeleteModal(id) {
+        deletingId = id;
+        deleteModal.classList.add("active");
+      }
+
+      function closeDeleteModal() {
+        deleteModal.classList.remove("active");
+        deletingId = null;
+      }
+
+      function confirmDelete() {
+        expenses = expenses.filter((e) => e.id !== deletingId);
+        localStorage.setItem("expenses", JSON.stringify(expenses));
+        closeDeleteModal();
+        renderDashboard();
+      }
+
+      // Clear All Functions
+      function clearAllData() {
+        clearModal.classList.add("active");
+      }
+
+      function closeClearModal() {
+        clearModal.classList.remove("active");
+      }
+
+      function confirmClearAll() {
+        expenses = [];
+        localStorage.setItem("expenses", JSON.stringify(expenses));
+        closeClearModal();
+        renderDashboard();
+      }
+
+      // CSV Export
+      function exportDataAsCSV() {
+        if (expenses.length === 0) {
+          alert("No data to export");
+          return;
+        }
+
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += "Date,Category,Amount\n";
+
+        expenses.forEach((e) => {
+          const row = [e.date, `"${e.category}"`, e.amount].join(",");
+          csvContent += row + "\n";
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `expenses_${new Date().toISOString().substring(0, 10)}.csv`);
+        document.body.appendChild(link);
+
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      // CSV Import
+      function triggerFileInput() {
+        fileInput.click();
+      }
+
+      fileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const csv = event.target.result;
+            const lines = csv.split("\n");
+            const newExpenses = [];
+
+            for (let i = 1; i < lines.length; i++) {
+              const line = lines[i].trim();
+              if (!line) continue;
+
+              // Parse CSV line (handles quoted fields)
+              const matches = line.match(/([^,]+),(?:"([^"]*)"|([^,]*)),([^,]+)/);
+              if (!matches) continue;
+
+              const date = matches[1].trim();
+              const category = (matches[2] || matches[3]).trim();
+              const amount = parseFloat(matches[4]);
+
+              if (date && category && !isNaN(amount)) {
+                newExpenses.push({
+                  id: Date.now() + Math.random(),
+                  timestamp: Date.now(),
+                  date: date,
+                  category: category,
+                  amount: amount,
+                });
+              }
+            }
+
+            if (newExpenses.length === 0) {
+              alert("No valid data found in the CSV file");
+              return;
+            }
+
+            // Replace all data
+            expenses = newExpenses;
+            localStorage.setItem("expenses", JSON.stringify(expenses));
+            fileInput.value = "";
+            renderDashboard();
+            alert(`Successfully imported ${newExpenses.length} expenses`);
+          } catch (error) {
+            console.error("Import error:", error);
+            alert("Error importing file. Please check the format.");
+          }
+        };
+
+        reader.readAsText(file);
+      });
+
       form.addEventListener("submit", (e) => {
         e.preventDefault();
         const amt = parseFloat(amountInput.value);
         const cat = categoryInput.value.trim();
+        const date = dateInput.value;
 
-        if (!amt || !cat) return;
+        if (!amt || !cat || !date) return;
 
         expenses.push({
           id: Date.now(),
           timestamp: Date.now(),
           amount: amt,
           category: cat,
-          date: getTodayStr(),
+          date: date,
         });
 
         localStorage.setItem("expenses", JSON.stringify(expenses));
         form.reset();
+        initializeDateInput();
         renderDashboard();
 
         monthTotalEl.style.transform = "scale(1.05)";
@@ -509,6 +991,7 @@
       });
 
       // Initialize execution on mount
+      initializeDateInput();
       renderDashboard();
     </script>
 

@@ -1,0 +1,16 @@
+{
+  "name": "Family Budget Tracker",
+  "short_name": "PocketBudget",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#f6f8fa",
+  "theme_color": "#2cc185",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2454/2454269.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

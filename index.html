@@ -313,7 +313,10 @@
       }
       .action-buttons {
         display: flex;
+        justify-content: space-between;
+        align-items: center;
         gap: 12px;
+        padding: 0 10px;
       }
       .month-header-row td {
         background-color: #edf2f7;
@@ -327,6 +330,7 @@
         color: var(--success-text);
         font-weight: 700;
         padding: 12px 10px;
+        text-align: right;
       }
 
       /* Native-style Mobile Bottom Navigation Bar */
@@ -973,7 +977,7 @@
                         <tr class="history-row" data-expense-id="${e.id}" onclick="toggleHistoryActions(${e.id}, event)">
                             <td>${e.date.substring(5)}</td>
                             <td>${e.category}</td>
-                            <td>${parseFloat(e.amount).toFixed(2)} BDT</td>
+                            <td>${parseFloat(e.amount).toFixed(2)}</td>
                         </tr>
                         <tr class="history-actions-row" data-actions-for="${e.id}">
                             <td colspan="3">
@@ -990,7 +994,8 @@
 
           htmlString += `
                     <tr class="month-total-row">
-                        <td colspan="3">Total Spend: ${subtotal.toFixed(2)} BDT</td>
+                        <td colspan="2"></td>
+                        <td>${subtotal.toFixed(2)}</td>
                     </tr>
                 `;
         }
@@ -999,35 +1004,36 @@
 
       // Edit Modal Functions
       function openEditModal(id) {
-        const expense = expenses.find((e) => e.id === id);
-        if (!expense) return;
-
         editingId = id;
-        editAmountInput.value = expense.amount;
-        editCategoryInput.value = expense.category;
-        editDateInput.value = expense.date;
-        editModal.classList.add("active");
+        const expense = expenses.find((e) => e.id === id);
+        if (expense) {
+          editAmountInput.value = expense.amount;
+          editCategoryInput.value = expense.category;
+          editDateInput.value = expense.date;
+          editModal.classList.add("active");
+        }
       }
 
       function closeEditModal() {
         editModal.classList.remove("active");
+        editForm.reset();
         editingId = null;
       }
 
       editForm.addEventListener("submit", (e) => {
         e.preventDefault();
-
-        const expense = expenses.find((x) => x.id === editingId);
-        if (expense) {
-          expense.amount = parseFloat(editAmountInput.value);
-          expense.category = editCategoryInput.value;
-          expense.date = editDateInput.value;
-          expense.timestamp = new Date(editDateInput.value).getTime();
-
-          localStorage.setItem("expenses", JSON.stringify(expenses));
-          closeEditModal();
-          renderDashboard();
-          renderHistory();
+        if (editingId) {
+          const expenseIndex = expenses.findIndex((e) => e.id === editingId);
+          if (expenseIndex !== -1) {
+            expenses[expenseIndex].amount = editAmountInput.value;
+            expenses[expenseIndex].category = editCategoryInput.value;
+            expenses[expenseIndex].date = editDateInput.value;
+            expenses[expenseIndex].timestamp = Date.now();
+            localStorage.setItem("expenses", JSON.stringify(expenses));
+            closeEditModal();
+            renderHistory();
+            renderDashboard();
+          }
         }
       });
 
@@ -1043,14 +1049,16 @@
       }
 
       function confirmDelete() {
-        expenses = expenses.filter((e) => e.id !== deletingId);
-        localStorage.setItem("expenses", JSON.stringify(expenses));
-        closeDeleteModal();
-        renderDashboard();
-        renderHistory();
+        if (deletingId) {
+          expenses = expenses.filter((e) => e.id !== deletingId);
+          localStorage.setItem("expenses", JSON.stringify(expenses));
+          closeDeleteModal();
+          renderHistory();
+          renderDashboard();
+        }
       }
 
-      // Clear All Modal Functions
+      // Clear All Data Functions
       function clearAllData() {
         clearModal.classList.add("active");
       }
@@ -1061,33 +1069,35 @@
 
       function confirmClearAll() {
         expenses = [];
-        localStorage.setItem("expenses", JSON.stringify(expenses));
+        localStorage.removeItem("expenses");
         closeClearModal();
         renderDashboard();
         renderHistory();
       }
 
-      // Export/Import Functions
+      // Export as CSV
       function exportDataAsCSV() {
         if (expenses.length === 0) {
-          alert("No expenses to export.");
+          alert("No data to export");
           return;
         }
 
-        let csv = "Date,Category,Amount\n";
+        let csvContent =
+          "data:text/csv;charset=utf-8," +
+          "Date,Category,Amount\n";
         expenses.forEach((e) => {
-          csv += `${e.date},"${e.category}",${e.amount}\n`;
+          csvContent += `${e.date},${e.category},${e.amount}\n`;
         });
 
-        const blob = new Blob([csv], { type: "text/csv" });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `expenses_${new Date().toISOString().substring(0, 10)}.csv`;
-        a.click();
-        window.URL.revokeObjectURL(url);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodeURI(csvContent));
+        link.setAttribute("download", "expense_data.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
       }
 
+      // Import CSV
       function triggerFileInput() {
         fileInput.click();
       }
@@ -1100,45 +1110,50 @@
         reader.onload = (event) => {
           try {
             const csv = event.target.result;
-            const lines = csv.split("\n").filter((line) => line.trim());
+            const lines = csv.split("\n").slice(1);
+            const imported = [];
+            let maxId = Math.max(...expenses.map((e) => e.id), 0);
 
-            if (lines.length < 2) {
-              alert("CSV file is empty or invalid.");
-              return;
-            }
-
-            const newExpenses = [];
-            for (let i = 1; i < lines.length; i++) {
-              const [date, category, amount] = lines[i].split(",");
-              if (date && category && amount) {
-                newExpenses.push({
-                  id: Date.now() + i,
-                  date: date.trim(),
-                  category: category.trim().replace(/"/g, ""),
-                  amount: parseFloat(amount),
-                  timestamp: new Date(date.trim()).getTime(),
-                });
+            lines.forEach((line) => {
+              if (line.trim()) {
+                const [date, category, amount] = line.split(",").map((s) => s.trim());
+                if (date && category && amount) {
+                  maxId++;
+                  imported.push({
+                    id: maxId,
+                    date,
+                    category,
+                    amount: parseFloat(amount),
+                    timestamp: Date.now(),
+                  });
+                }
               }
-            }
+            });
 
-            if (newExpenses.length > 0) {
-              expenses = newExpenses;
+            if (imported.length > 0) {
+              expenses = imported;
               localStorage.setItem("expenses", JSON.stringify(expenses));
               renderDashboard();
               renderHistory();
-              alert(`Successfully imported ${newExpenses.length} expenses.`);
+              alert(`Imported ${imported.length} expense(s)`);
+            } else {
+              alert("No valid data found in CSV");
             }
-          } catch (err) {
-            alert("Error reading CSV file: " + err.message);
+          } catch (error) {
+            alert("Error importing CSV: " + error.message);
           }
         };
         reader.readAsText(file);
-        fileInput.value = "";
       });
 
-      // Initialize the app
+      // Initialize
       initializeDateInput();
       renderDashboard();
+
+      // Handle window before unload to save state
+      window.addEventListener("beforeunload", () => {
+        localStorage.setItem("expenses", JSON.stringify(expenses));
+      });
     </script>
   </body>
 </html>

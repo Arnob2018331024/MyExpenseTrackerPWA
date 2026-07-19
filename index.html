@@ -284,12 +284,18 @@
         color: var(--text-muted);
         border-bottom: 2px solid var(--border);
       }
+      .history-table th:nth-child(3) {
+        text-align: right;
+      }
       .history-table td {
         padding: 12px 10px;
         font-size: 0.95rem;
         border-bottom: 1px solid var(--border);
         vertical-align: middle;
         word-break: break-word;
+      }
+      .history-table td:nth-child(3) {
+        text-align: right;
       }
       .history-row {
         cursor: pointer;
@@ -865,10 +871,10 @@
       function updateCategoryOptions() {
         const categories = [...new Set(expenses.map((e) => e.category))];
         datalist.innerHTML = categories
-          .map((c) => `<option value="${c}">`)
+          .map((c) => `<option value="${c}">${c}</option>`)
           .join("");
         editDatalist.innerHTML = categories
-          .map((c) => `<option value="${c}">`)
+          .map((c) => `<option value="${c}">${c}</option>`)
           .join("");
       }
 
@@ -999,14 +1005,52 @@
                     </tr>
                 `;
         }
+
         historyBody.innerHTML = htmlString;
       }
 
-      // Edit Modal Functions
+      // Event listeners
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const amount = amountInput.value;
+        const category = categoryInput.value;
+        const date = dateInput.value;
+
+        if (amount && category && date) {
+          const newExpense = {
+            id: Date.now(),
+            amount: parseFloat(amount),
+            category,
+            date,
+            timestamp: Date.now(),
+          };
+          expenses.push(newExpense);
+          localStorage.setItem("expenses", JSON.stringify(expenses));
+          form.reset();
+          initializeDateInput();
+          renderDashboard();
+        }
+      });
+
+      editForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (editingId !== null) {
+          const expense = expenses.find((e) => e.id === editingId);
+          if (expense) {
+            expense.amount = parseFloat(editAmountInput.value);
+            expense.category = editCategoryInput.value;
+            expense.date = editDateInput.value;
+            localStorage.setItem("expenses", JSON.stringify(expenses));
+            closeEditModal();
+            renderDashboard();
+          }
+        }
+      });
+
       function openEditModal(id) {
-        editingId = id;
         const expense = expenses.find((e) => e.id === id);
         if (expense) {
+          editingId = id;
           editAmountInput.value = expense.amount;
           editCategoryInput.value = expense.category;
           editDateInput.value = expense.date;
@@ -1015,50 +1059,30 @@
       }
 
       function closeEditModal() {
-        editModal.classList.remove("active");
-        editForm.reset();
         editingId = null;
+        editModal.classList.remove("active");
       }
 
-      editForm.addEventListener("submit", (e) => {
-        e.preventDefault();
-        if (editingId) {
-          const expenseIndex = expenses.findIndex((e) => e.id === editingId);
-          if (expenseIndex !== -1) {
-            expenses[expenseIndex].amount = editAmountInput.value;
-            expenses[expenseIndex].category = editCategoryInput.value;
-            expenses[expenseIndex].date = editDateInput.value;
-            expenses[expenseIndex].timestamp = Date.now();
-            localStorage.setItem("expenses", JSON.stringify(expenses));
-            closeEditModal();
-            renderHistory();
-            renderDashboard();
-          }
-        }
-      });
-
-      // Delete Modal Functions
       function openDeleteModal(id) {
         deletingId = id;
         deleteModal.classList.add("active");
       }
 
       function closeDeleteModal() {
-        deleteModal.classList.remove("active");
         deletingId = null;
+        deleteModal.classList.remove("active");
       }
 
       function confirmDelete() {
-        if (deletingId) {
+        if (deletingId !== null) {
           expenses = expenses.filter((e) => e.id !== deletingId);
           localStorage.setItem("expenses", JSON.stringify(expenses));
           closeDeleteModal();
-          renderHistory();
           renderDashboard();
+          renderHistory();
         }
       }
 
-      // Clear All Data Functions
       function clearAllData() {
         clearModal.classList.add("active");
       }
@@ -1069,37 +1093,34 @@
 
       function confirmClearAll() {
         expenses = [];
-        localStorage.removeItem("expenses");
+        localStorage.setItem("expenses", JSON.stringify(expenses));
         closeClearModal();
         renderDashboard();
         renderHistory();
       }
 
-      // Export as CSV
+      function triggerFileInput() {
+        fileInput.click();
+      }
+
       function exportDataAsCSV() {
         if (expenses.length === 0) {
           alert("No data to export");
           return;
         }
 
-        let csvContent =
-          "data:text/csv;charset=utf-8," +
-          "Date,Category,Amount\n";
+        let csv = "date,category,amount\n";
         expenses.forEach((e) => {
-          csvContent += `${e.date},${e.category},${e.amount}\n`;
+          csv += `${e.date},"${e.category}",${e.amount}\n`;
         });
 
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
-        link.setAttribute("href", encodeURI(csvContent));
-        link.setAttribute("download", "expense_data.csv");
-        document.body.appendChild(link);
+        link.href = url;
+        link.download = `expenses_${new Date().toISOString().split("T")[0]}.csv`;
         link.click();
-        document.body.removeChild(link);
-      }
-
-      // Import CSV
-      function triggerFileInput() {
-        fileInput.click();
+        window.URL.revokeObjectURL(url);
       }
 
       fileInput.addEventListener("change", (e) => {
@@ -1110,50 +1131,45 @@
         reader.onload = (event) => {
           try {
             const csv = event.target.result;
-            const lines = csv.split("\n").slice(1);
-            const imported = [];
-            let maxId = Math.max(...expenses.map((e) => e.id), 0);
+            const lines = csv.split("\n");
+            const parsedExpenses = [];
 
-            lines.forEach((line) => {
-              if (line.trim()) {
-                const [date, category, amount] = line.split(",").map((s) => s.trim());
-                if (date && category && amount) {
-                  maxId++;
-                  imported.push({
-                    id: maxId,
-                    date,
-                    category,
-                    amount: parseFloat(amount),
-                    timestamp: Date.now(),
-                  });
-                }
+            for (let i = 1; i < lines.length; i++) {
+              const line = lines[i].trim();
+              if (!line) continue;
+
+              const match = line.match(/^(.+?),"(.+?)",(.+)$/);
+              if (match) {
+                const [, date, category, amount] = match;
+                parsedExpenses.push({
+                  id: Date.now() + i,
+                  date: date.trim(),
+                  category: category.trim(),
+                  amount: parseFloat(amount.trim()),
+                  timestamp: Date.now() + i,
+                });
               }
-            });
+            }
 
-            if (imported.length > 0) {
-              expenses = imported;
+            if (parsedExpenses.length > 0) {
+              expenses = parsedExpenses;
               localStorage.setItem("expenses", JSON.stringify(expenses));
               renderDashboard();
               renderHistory();
-              alert(`Imported ${imported.length} expense(s)`);
-            } else {
-              alert("No valid data found in CSV");
+              alert(`Imported ${parsedExpenses.length} expenses`);
             }
           } catch (error) {
-            alert("Error importing CSV: " + error.message);
+            alert("Error importing file: " + error.message);
           }
         };
+
         reader.readAsText(file);
+        fileInput.value = "";
       });
 
       // Initialize
       initializeDateInput();
       renderDashboard();
-
-      // Handle window before unload to save state
-      window.addEventListener("beforeunload", () => {
-        localStorage.setItem("expenses", JSON.stringify(expenses));
-      });
     </script>
   </body>
 </html>
